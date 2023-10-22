@@ -1,5 +1,14 @@
-import prereq.constructive
+/-
+Copyright (c) 2023 Bhavik Mehta. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Bhavik Mehta
+-/
 import basic
+import prereq.constructive
+
+/-!
+# Section 4
+-/
 
 lemma convex_on.mul {f g : ℝ → ℝ} {s : set ℝ} (hf : convex_on ℝ s f) (hg : convex_on ℝ s g)
   (hf' : monotone_on f s) (hg' : monotone_on g s)
@@ -56,7 +65,7 @@ begin
       (mul_le_mul_of_nonneg_left (le_max_right _ _) hb.le) },
 end
 
-lemma convex_on.congr {s : set ℝ} {f g : ℝ → ℝ} (hf : convex_on ℝ s f) (h : s.eq_on f g) :
+lemma convex_on.congr' {s : set ℝ} {f g : ℝ → ℝ} (hf : convex_on ℝ s f) (h : s.eq_on f g) :
   convex_on ℝ s g :=
 begin
   refine ⟨hf.1, _⟩,
@@ -65,6 +74,7 @@ begin
   exact hf.2 hx hy ha hb hab,
 end
 
+/-- the descending factorial but with a more general setting -/
 def desc_factorial {α : Type*} [has_one α] [has_mul α] [has_sub α] [has_nat_cast α] (x : α) : ℕ → α
 | 0 := 1
 | (k + 1) := (x - k) * desc_factorial k
@@ -159,10 +169,9 @@ begin
 end
 
 -- is equal to desc_factorial for all naturals x, and for all x ≥ k - 1
+/-- a variant of the descending factorial which truncates at k-1 -/
 noncomputable def my_desc_factorial (x : ℝ) (k : ℕ) : ℝ :=
 if x < k - 1 then 0 else desc_factorial x k
-
--- lemma desc_factorial_convex : ∀ k : ℕ, convex_on ℝ (set.Ici ((k : ℝ) - 1)) (λ x, desc_factorial x k)
 
 lemma my_desc_factorial_eq_on {k : ℕ} :
   (set.Ici ((k : ℝ) - 1)).eq_on (λ x, my_desc_factorial x k) (λ x, desc_factorial x k) :=
@@ -185,12 +194,12 @@ end
 
 lemma my_desc_factorial_convex_on_Ici (k : ℕ) :
   convex_on ℝ (set.Ici ((k : ℝ) - 1)) (λ x, my_desc_factorial x k) :=
-(desc_factorial_convex _).congr my_desc_factorial_eq_on.symm
+(desc_factorial_convex _).congr' my_desc_factorial_eq_on.symm
 
 lemma my_desc_factorial_convex {k : ℕ} (hk : k ≠ 0):
   convex_on ℝ set.univ (λ x, my_desc_factorial x k) :=
 begin
-  refine my_convex ((desc_factorial_convex _).congr my_desc_factorial_eq_on.symm)
+  refine my_convex ((desc_factorial_convex _).congr' my_desc_factorial_eq_on.symm)
     ((desc_factorial_monotone_on _).congr my_desc_factorial_eq_on.symm) _,
   intros x hx,
   rw [my_desc_factorial, if_pos hx, my_desc_factorial, if_neg (lt_irrefl _)],
@@ -201,6 +210,7 @@ begin
   exact nat.pred_lt hk,
 end
 
+/-- a definition of the generalized binomial coefficient -/
 noncomputable def my_generalized_binomial (x : ℝ) (k : ℕ) : ℝ :=
 (k.factorial : ℝ)⁻¹ • my_desc_factorial x k
 
@@ -360,15 +370,6 @@ begin
   exact (four_two_aux''' hb hσ₀ hi).trans (four_two_aux'' hb hσ₀ hσ₁ hi),
 end
 
--- lemma four_two_right {m b : ℕ} {σ : ℝ} (hb : (b : ℝ) ≤ σ * m / 2) (hσ₀ : 0 < σ) (hσ₁ : σ < 1) :
---   my_generalized_binomial (σ * m) b ≤ σ ^ b * m.choose b :=
--- begin
---   rw [←div_le_iff, div_eq_mul_inv, four_two_aux_aux hb hσ₀, four_two_aux, four_two_aux' hb hσ₀ hσ₁],
---   { refine mul_le_of_le_one_right (by positivity) _,
---     refine finset.prod_le_one _ _,
---   }
--- end
-
 -- Fact 4.2
 lemma four_two_left {m b : ℕ} {σ : ℝ} (hb : (b : ℝ) ≤ σ * m / 2) (hσ₀ : 0 < σ) (hσ₁ : σ ≤ 1) :
   σ ^ b * m.choose b * exp (- b ^ 2 / (σ * m)) ≤ my_generalized_binomial (σ * m) b :=
@@ -390,9 +391,9 @@ end
 open filter finset real
 
 namespace simple_graph
-variables {V : Type*} [decidable_eq V] [fintype V] {χ : top_edge_labelling V (fin 2)}
+variables {V : Type*} [decidable_eq V] {χ : top_edge_labelling V (fin 2)}
 
-lemma four_one_part_one (μ : ℝ) (l k : ℕ) (C : book_config χ)
+lemma four_one_part_one [fintype V] (μ : ℝ) (l k : ℕ) (C : book_config χ)
   (hC : ramsey_number ![k, ⌈(l : ℝ) ^ (2 / 3 : ℝ)⌉₊] ≤ C.num_big_blues μ)
   (hR : ¬ (∃ m : finset V, χ.monochromatic_of m 0 ∧ k ≤ m.card)) :
   ∃ U : finset V, χ.monochromatic_of U 1 ∧ U.card = ⌈(l : ℝ) ^ (2 / 3 : ℝ)⌉₊ ∧
@@ -420,7 +421,7 @@ begin
   rw [card_map, hU''],
 end
 
-lemma col_density_mul {k : fin 2} {A B : finset V} :
+lemma col_density_mul [fintype V] {k : fin 2} {A B : finset V} :
   col_density χ k A B * A.card = (∑ x in B, (col_neighbors χ k x ∩ A).card) / B.card :=
 begin
   rcases A.eq_empty_or_nonempty with rfl | hA,
@@ -430,7 +431,7 @@ begin
   rwa [nat.cast_ne_zero, ←pos_iff_ne_zero, card_pos],
 end
 
-lemma col_density_mul_mul {k : fin 2} {A B : finset V} :
+lemma col_density_mul_mul [fintype V] {k : fin 2} {A B : finset V} :
   col_density χ k A B * (A.card * B.card) = ∑ x in B, (col_neighbors χ k x ∩ A).card :=
 begin
   rcases B.eq_empty_or_nonempty with rfl | hA,
@@ -441,7 +442,7 @@ end
 
 
 -- (10)
-lemma four_one_part_two (μ : ℝ) {l : ℕ} {C : book_config χ} {U : finset V}
+lemma four_one_part_two [fintype V] (μ : ℝ) {l : ℕ} {C : book_config χ} {U : finset V}
   (hl : l ≠ 0)
   (hU : U.card = ⌈(l : ℝ) ^ (2 / 3 : ℝ)⌉₊)
   (hU' : U ⊆ C.X) (hU'' : ∀ x ∈ U, μ * C.X.card ≤ (blue_neighbors χ x ∩ C.X).card) :
@@ -512,7 +513,7 @@ begin
   linarith only [hk₆],
 end
 
-variables {k l : ℕ} {C : book_config χ} {U : finset V} {μ₀ : ℝ}
+variables [fintype V] {k l : ℕ} {C : book_config χ} {U : finset V} {μ₀ : ℝ}
 
 lemma ceil_lt_two_mul {x : ℝ} (hx : 1 / 2 < x) : (⌈x⌉₊ : ℝ) < 2 * x :=
 begin
@@ -590,6 +591,7 @@ begin
   rwa nat.cast_pos,
 end
 
+/-- the set of vertices which are connected to S by only blue edges -/
 def common_blues (χ : top_edge_labelling V (fin 2)) (S : finset V) :
   finset V := univ.filter (λ i, ∀ j ∈ S, i ∈ blue_neighbors χ j)
 
@@ -966,7 +968,7 @@ begin
   rwa nat.cast_pos
 end
 
-lemma four_four_red_aux {μ : ℝ} {k l : ℕ} (hk : k ≠ 0) (hl : l ≠ 0)
+lemma four_four_red_aux {μ : ℝ} {k l : ℕ}
   (ini : book_config χ) (i : ℕ) (hi : i ≤ final_step μ k l ini) :
   (red_steps μ k l ini ∩ range i).card ≤ (algorithm μ k l ini i).A.card :=
 begin
@@ -1021,10 +1023,10 @@ begin
   exact book_config.get_central_vertex_mem_X _ _ _,
 end
 
-lemma t_le_A_card (μ : ℝ) {k l : ℕ} (hk : k ≠ 0) (hl : l ≠ 0) (ini : book_config χ) :
+lemma t_le_A_card (μ : ℝ) (k l : ℕ) (ini : book_config χ) :
   (red_steps μ k l ini).card ≤ (end_state μ k l ini).A.card :=
 begin
-  have hl := four_four_red_aux hk hl ini (final_step μ k l ini) le_rfl,
+  have hl := four_four_red_aux ini (final_step μ k l ini) le_rfl,
   have : red_steps μ k l ini ∩ range (final_step μ k l ini) = red_steps μ k l ini,
   { rw [inter_eq_left_iff_subset],
     exact red_steps_subset_red_or_density_steps.trans (filter_subset _ _) },
@@ -1032,12 +1034,12 @@ begin
 end
 
 -- observation 4.4
-lemma four_four_red (μ : ℝ) {k l : ℕ} (hk : k ≠ 0) (hl : l ≠ 0)
+lemma four_four_red (μ : ℝ) {k l : ℕ}
   (h : ¬ (∃ (m : finset V) (c : fin 2), χ.monochromatic_of m c ∧ ![k, l] c ≤ m.card))
   (ini : book_config χ) :
   (red_steps μ k l ini).card ≤ k :=
 begin
-  have hl := t_le_A_card μ hk hl ini,
+  have hl := t_le_A_card μ k l ini,
   simp only [fin.exists_fin_two, matrix.cons_val_zero, matrix.cons_val_one, matrix.head_cons,
     exists_or_distrib, not_or_distrib, not_exists, not_and, not_le] at h,
   exact hl.trans (h.1 _ (end_state μ k l ini).red_A).le,
@@ -1071,7 +1073,7 @@ lemma four_four_degree (μ : ℝ) {k l : ℕ} (hk : k ≠ 0) (hl : l ≠ 0)
 begin
   refine (num_degree_steps_le_add).trans _,
   rw [add_le_add_iff_right, add_assoc],
-  exact add_le_add (four_four_red μ hk hl h _) (four_four_blue_density μ hk hl h _),
+  exact add_le_add (four_four_red μ h _) (four_four_blue_density μ hk hl h _),
 end
 
 end simple_graph

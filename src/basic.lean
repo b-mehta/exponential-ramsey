@@ -1,8 +1,18 @@
-import combinatorics.simple_graph.density
-
+/-
+Copyright (c) 2023 Bhavik Mehta. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Bhavik Mehta
+-/
 import prereq.ramsey
 import prereq.graph_probability
+import combinatorics.simple_graph.density
+import data.seq.seq
 
+/-!
+# Book algorithm
+
+Define the book algorithm with its prerequisites.
+-/
 open finset real
 namespace simple_graph
 open_locale big_operators
@@ -13,6 +23,8 @@ lemma cast_card_sdiff {α R : Type*} [add_group_with_one R] [decidable_eq α] {s
   (h : s ⊆ t) : ((t \ s).card : R) = t.card - s.card :=
 by rw [card_sdiff h, nat.cast_sub (card_le_of_subset h)]
 
+/-- For `χ` a labelling and vertex sets `X` `Y` and a label `k`, give the edge density of
+`k`-labelled edges between `X` and `Y`. -/
 def col_density [decidable_eq V] [decidable_eq K] (χ : top_edge_labelling V K) (k : K)
   (X Y : finset V) : ℝ :=
 edge_density (χ.label_graph k) X Y
@@ -46,6 +58,7 @@ by rw [col_density, edge_density_empty_right, rat.cast_zero]
 localized "notation `red_density` χ:1024 := simple_graph.col_density χ 0" in exponential_ramsey
 localized "notation `blue_density` χ:1024 := simple_graph.col_density χ 1" in exponential_ramsey
 
+/-- the set of neighbours of x which are connected to it by edges labelled k -/
 def col_neighbors [fintype V] [decidable_eq V] [decidable_eq K] (χ : top_edge_labelling V K)
   (k : K) (x : V) : finset V :=
 neighbor_finset (χ.label_graph k) x
@@ -55,7 +68,11 @@ localized "notation `blue_neighbors` χ:1024 := simple_graph.col_neighbors χ 1"
 
 open_locale exponential_ramsey
 
-variables [fintype V] [decidable_eq V]
+variables [decidable_eq V]
+
+section
+
+variables [fintype V]
 
 lemma mem_col_neighbors [decidable_eq K] {χ : top_edge_labelling V K} {x y : V} {k : K} :
   y ∈ col_neighbors χ k x ↔ ∃ (H : x ≠ y), χ.get x y = k :=
@@ -71,6 +88,8 @@ by rw [mem_col_neighbors, mem_col_neighbors']
 
 lemma not_mem_col_neighbors [decidable_eq K] {χ : top_edge_labelling V K} {x : V} {k : K} :
   x ∉ col_neighbors χ k x := not_mem_neighbor_finset_self _ _
+
+end
 
 lemma interedges_card_eq_sum {V : Type*} [decidable_eq V] [fintype V] {G : simple_graph V}
   [decidable_rel G.adj] {A B : finset V} :
@@ -92,8 +111,8 @@ begin
   simp only [function.embedding.coe_fn_mk, mem_neighbor_finset, iff_self, implies_true_iff],
 end
 
-lemma col_density_eq_sum {K : Type*} [decidable_eq K] {χ : top_edge_labelling V K} {k : K}
-  {A B : finset V} :
+lemma col_density_eq_sum {K : Type*} [fintype V] [decidable_eq K] {χ : top_edge_labelling V K}
+  {k : K} {A B : finset V} :
   col_density χ k A B = (∑ x in A, (col_neighbors χ k x ∩ B).card) / (A.card * B.card) :=
 begin
   rw [col_density, edge_density_def, interedges_card_eq_sum],
@@ -101,17 +120,29 @@ begin
   refl,
 end
 
--- (3)
+section
+
+variable [fintype V]
+
+/--
+Define the weight of an ordered pair for the book algorithm.
+`pair_weight χ X Y x y` corresponds to `ω(x, y)` in the paper, see equation (3).
+-/
 noncomputable def pair_weight (χ : top_edge_labelling V (fin 2)) (X Y : finset V) (x y : V) : ℝ :=
 Y.card⁻¹ *
   ((red_neighbors χ x ∩ red_neighbors χ y ∩ Y).card -
     red_density χ X Y * (red_neighbors χ x ∩ Y).card)
 
--- (4)
+/--
+Define the weight of a vertex for the book algorithm.
+`pair_weight χ X Y x` corresponds to `ω(x)` in the paper, see equation (4).
+-/
 noncomputable def weight (χ : top_edge_labelling V (fin 2)) (X Y : finset V) (x : V) : ℝ :=
 ∑ y in X.erase x, pair_weight χ X Y x y
 
--- (5)
+end
+
+/-- Define the function `q` from the paper, see equation (5).  -/
 noncomputable def q_function (k : ℕ) (p₀ : ℝ) (h : ℕ) : ℝ :=
 p₀ + ((1 + k^(- 1/4 : ℝ)) ^ h - 1) / k
 
@@ -153,7 +184,7 @@ begin
   { positivity },
 end
 
--- (5)
+/-- Define the height, `h(p)` from the paper. See equation (5). -/
 noncomputable def height (k : ℕ) (p₀ p : ℝ) : ℕ :=
 if h : k ≠ 0 then nat.find (q_function_above p₀ p h) else 1
 
@@ -165,11 +196,11 @@ begin
   exact le_rfl
 end
 
--- (6)
+/-- Define function `α_h` from the paper. We use the right half of equation (6) as the definition
+for simplicity, and `α_function_eq_q_diff` gives the left half. -/
 noncomputable def α_function (k : ℕ) (h : ℕ) : ℝ :=
 k^(- 1/4 : ℝ) * (1 + k^(- 1/4 : ℝ)) ^ (h - 1) / k
 
--- (6)
 lemma α_function_eq_q_diff {k : ℕ} {p₀ : ℝ} {h : ℕ} :
   α_function k (h + 1) = q_function k p₀ (h + 1) - q_function k p₀ h :=
 begin
@@ -177,96 +208,14 @@ begin
     sub_sub_sub_cancel_right, pow_succ, ←sub_one_mul, add_sub_cancel', nat.add_sub_cancel]
 end
 
-section
-
-variables {χ : top_edge_labelling V K}
-
-namespace top_edge_labelling
-
-def monochromatic_between (χ : top_edge_labelling V K)
-  (X Y : finset V) (k : K) : Prop :=
-∀ ⦃x⦄, x ∈ X → ∀ ⦃y⦄, y ∈ Y → x ≠ y → χ.get x y = k
-
-instance [decidable_eq K] {X Y : finset V} {k : K} : decidable (monochromatic_between χ X Y k) :=
-finset.decidable_dforall_finset
-
-@[simp] lemma monochromatic_between_empty_left {Y : finset V} {k : K} :
-  χ.monochromatic_between ∅ Y k :=
-by simp [monochromatic_between]
-
-@[simp] lemma monochromatic_between_empty_right {X : finset V} {k : K} :
-  χ.monochromatic_between X ∅ k :=
-by simp [monochromatic_between]
-
-lemma monochromatic_between_singleton_left {x : V} {Y : finset V} {k : K} :
-  χ.monochromatic_between {x} Y k ↔ ∀ ⦃y⦄, y ∈ Y → x ≠ y → χ.get x y = k :=
-by simp [monochromatic_between]
-
-lemma monochromatic_between_singleton_right {y : V} {X : finset V} {k : K} :
-  χ.monochromatic_between X {y} k ↔ ∀ ⦃x⦄, x ∈ X → x ≠ y → χ.get x y = k :=
-by simp [monochromatic_between]
-
-lemma monochromatic_between_union_left {X Y Z : finset V} {k : K} :
-  χ.monochromatic_between (X ∪ Y) Z k ↔
-    χ.monochromatic_between X Z k ∧ χ.monochromatic_between Y Z k :=
-by simp only [monochromatic_between, mem_union, or_imp_distrib, forall_and_distrib]
-
-lemma monochromatic_between_union_right {X Y Z : finset V} {k : K} :
-  χ.monochromatic_between X (Y ∪ Z) k ↔
-    χ.monochromatic_between X Y k ∧ χ.monochromatic_between X Z k :=
-by simp only [monochromatic_between, mem_union, or_imp_distrib, forall_and_distrib]
-
-lemma monochromatic_between_self {X : finset V} {k : K} :
-  χ.monochromatic_between X X k ↔ χ.monochromatic_of X k :=
-by simp only [monochromatic_between, monochromatic_of, mem_coe]
-
-lemma _root_.disjoint.monochromatic_between {X Y : finset V} {k : K} (h : disjoint X Y) :
-  χ.monochromatic_between X Y k ↔
-    ∀ ⦃x⦄, x ∈ X → ∀ ⦃y⦄, y ∈ Y → χ.get x y (h.forall_ne_finset ‹_› ‹_›) = k :=
-forall₄_congr $ λ x hx y hy, by simp [h.forall_ne_finset hx hy]
-
-lemma monochromatic_between.subset_left {X Y Z : finset V} {k : K}
-  (hYZ : χ.monochromatic_between Y Z k) (hXY : X ⊆ Y) :
-  χ.monochromatic_between X Z k :=
-λ x hx y hy h, hYZ (hXY hx) hy _
-
-lemma monochromatic_between.subset_right {X Y Z : finset V} {k : K}
-  (hXZ : χ.monochromatic_between X Z k) (hXY : Y ⊆ Z) :
-  χ.monochromatic_between X Y k :=
-λ x hx y hy h, hXZ hx (hXY hy) _
-
-lemma monochromatic_between.subset {W X Y Z : finset V} {k : K}
-  (hWX : χ.monochromatic_between W X k) (hYW : Y ⊆ W) (hZX : Z ⊆ X) :
-  χ.monochromatic_between Y Z k :=
-λ x hx y hy h, hWX (hYW hx) (hZX hy) _
-
-lemma monochromatic_between.symm {X Y : finset V} {k : K}
-  (hXY : χ.monochromatic_between X Y k) :
-  χ.monochromatic_between Y X k :=
-λ y hy x hx h, by { rw get_swap _ _ h.symm, exact hXY hx hy _ }
-
-lemma monochromatic_between.comm {X Y : finset V} {k : K} :
-  χ.monochromatic_between Y X k ↔ χ.monochromatic_between X Y k :=
-⟨monochromatic_between.symm, monochromatic_between.symm⟩
-
-lemma monochromatic_of_union {X Y : finset V} {k : K} :
-  χ.monochromatic_of (X ∪ Y) k ↔
-    χ.monochromatic_of X k ∧ χ.monochromatic_of Y k ∧ χ.monochromatic_between X Y k :=
-begin
-  have : χ.monochromatic_between X Y k ∧ χ.monochromatic_between Y X k ↔
-    χ.monochromatic_between X Y k := (and_iff_left_of_imp (monochromatic_between.symm)),
-  rw ←this,
-  simp only [monochromatic_of, set.mem_union, or_imp_distrib, forall_and_distrib, mem_coe,
-    monochromatic_between],
-  tauto,
-end
-
-end top_edge_labelling
-
-end
-
 variable {χ : top_edge_labelling V (fin 2)}
 
+open top_edge_labelling
+
+/--
+the quadruple of sets X,Y,A,B that we keep track of in the book algorithm, bundled with the
+properties which are needed for it
+-/
 structure book_config (χ : top_edge_labelling V (fin 2)) :=
   (X Y A B : finset V)
   (hXY : disjoint X Y)
@@ -282,14 +231,24 @@ structure book_config (χ : top_edge_labelling V (fin 2)) :=
 
 namespace book_config
 
+/-- Define `p` from the paper at a given configuration. -/
 def p (C : book_config χ) : ℝ := red_density χ C.X C.Y
 
+section
+
+variable [fintype V]
+
+/-- Given a vertex set `X`, construct the initial configuration where `X` is as given. -/
 def start (X : finset V) : book_config χ :=
 begin
   refine ⟨X, Xᶜ, ∅, ∅, disjoint_compl_right, _, _, _, _, _, _, _, _, _⟩,
   all_goals { simp }
 end
 
+-- todo: this instance shouldn't need fintype; just use everything empty
+instance : inhabited (book_config χ) := ⟨start ∅⟩
+
+/-- Take a red step for the book algorithm, given `x ∈ X`. -/
 def red_step_basic (C : book_config χ) (x : V) (hx : x ∈ C.X) : book_config χ :=
 { X := red_neighbors χ x ∩ C.X, Y := red_neighbors χ x ∩ C.Y, A := insert x C.A, B := C.B,
   hXY := disjoint_of_subset_left (inter_subset_right _ _) (C.hXY.inf_right' _),
@@ -328,8 +287,7 @@ def red_step_basic (C : book_config χ) (x : V) (hx : x ∈ C.X) : book_config �
     { exact C.red_XYA.subset_left (inter_subset_right _ _) },
   end,
   blue_B := C.blue_B,
-  blue_XB := C.blue_XB.subset_left (inter_subset_right _ _)
-}
+  blue_XB := C.blue_XB.subset_left (inter_subset_right _ _) }
 
 lemma red_step_basic_X {C : book_config χ} {x : V} (hx : x ∈ C.X) :
   (red_step_basic C x hx).X = red_neighbors χ x ∩ C.X := rfl
@@ -343,6 +301,11 @@ lemma red_step_basic_A {C : book_config χ} {x : V} (hx : x ∈ C.X) :
 lemma red_step_basic_B {C : book_config χ} {x : V} (hx : x ∈ C.X) :
   (red_step_basic C x hx).B = C.B := rfl
 
+end
+
+section
+
+/-- Take a big blue step for the book algorithm, given a blue book `(S, T)` contained in `X`. -/
 def big_blue_step_basic (C : book_config χ) (S T : finset V) (hS : S ⊆ C.X) (hT : T ⊆ C.X)
   (hSS : χ.monochromatic_of S 1) (hST : disjoint S T) (hST' : χ.monochromatic_between S T 1) :
   book_config χ :=
@@ -364,9 +327,11 @@ def big_blue_step_basic (C : book_config χ) (S T : finset V) (hS : S ⊆ C.X) (
   begin
     rw [top_edge_labelling.monochromatic_between_union_right],
     exact ⟨C.blue_XB.subset_left hT, hST'.symm⟩,
-  end
-}
+  end }
 
+variable [fintype V]
+
+/-- Take a density boost step for the book algorithm, given `x ∈ X`. -/
 def density_boost_step_basic (C : book_config χ) (x : V) (hx : x ∈ C.X) : book_config χ :=
 { X := blue_neighbors χ x ∩ C.X, Y := red_neighbors χ x ∩ C.Y, A := C.A, B := insert x C.B,
   hXY := (C.hXY.inf_left' _).inf_right' _,
@@ -392,17 +357,16 @@ def density_boost_step_basic (C : book_config χ) (x : V) (hx : x ∈ C.X) : boo
     (union_subset_union (inter_subset_right _ _) (inter_subset_right _ _)),
   blue_B :=
   begin
-    rw [insert_eq, coe_union, top_edge_labelling.monochromatic_of_union, coe_singleton],
+    rw [insert_eq, coe_union, monochromatic_of_union, coe_singleton],
     exact ⟨monochromatic_of_singleton, C.blue_B, C.blue_XB.subset_left (by simpa using hx)⟩,
   end,
   blue_XB :=
   begin
-    rw [insert_eq, top_edge_labelling.monochromatic_between_union_right,
-      top_edge_labelling.monochromatic_between_singleton_right],
+    rw [insert_eq, monochromatic_between_union_right,
+      monochromatic_between_singleton_right],
     refine ⟨_, C.blue_XB.subset_left (inter_subset_right _ _)⟩,
     simp [mem_col_neighbors'] {contextual := tt},
-  end
-}
+  end }
 
 lemma density_boost_step_basic_X {C : book_config χ} {x : V} (hx : x ∈ C.X) :
   (density_boost_step_basic C x hx).X = blue_neighbors χ x ∩ C.X := rfl
@@ -416,6 +380,12 @@ lemma density_boost_step_basic_A {C : book_config χ} {x : V} (hx : x ∈ C.X) :
 lemma density_boost_step_basic_B {C : book_config χ} {x : V} (hx : x ∈ C.X) :
   (density_boost_step_basic C x hx).B = insert x C.B := rfl
 
+end
+
+section
+
+/-- Take a degree regularisation step for the book algorithm, given `U ⊆ X` for the vertices we want
+to keep in `X`. -/
 def degree_regularisation_step_basic (C : book_config χ) (U : finset V) (h : U ⊆ C.X) :
   book_config χ :=
 { X := U, Y := C.Y, A := C.A, B := C.B,
@@ -428,22 +398,22 @@ def degree_regularisation_step_basic (C : book_config χ) (U : finset V) (h : U 
   red_A := C.red_A,
   red_XYA := C.red_XYA.subset_left (union_subset_union h subset.rfl),
   blue_B := C.blue_B,
-  blue_XB := C.blue_XB.subset_left h
-}
+  blue_XB := C.blue_XB.subset_left h }
 
-noncomputable def height (k : ℕ) (p₀ : ℝ) (C : book_config χ) : ℕ := height k p₀ C.p
+variable [fintype V]
 
+/-- Take a degree regularisation step, choosing the set of vertices as in the paper. -/
 noncomputable def degree_regularisation_step (k : ℕ) (p₀ : ℝ) (C : book_config χ) :
   book_config χ :=
 degree_regularisation_step_basic C
   (C.X.filter
-    (λ x, (C.p - k ^ (1 / 8 : ℝ) * α_function k (C.height k p₀)) * C.Y.card ≤
+    (λ x, (C.p - k ^ (1 / 8 : ℝ) * α_function k (height k p₀ C.p)) * C.Y.card ≤
       (red_neighbors χ x ∩ C.Y).card))
   (filter_subset _ _)
 
 lemma degree_regularisation_step_X {k : ℕ} {p₀ : ℝ} {C : book_config χ} :
   (degree_regularisation_step k p₀ C).X =
-    C.X.filter (λ x, (C.p - k ^ (1 / 8 : ℝ) * α_function k (C.height k p₀)) * C.Y.card ≤
+    C.X.filter (λ x, (C.p - k ^ (1 / 8 : ℝ) * α_function k (height k p₀ C.p)) * C.Y.card ≤
       (red_neighbors χ x ∩ C.Y).card) :=
 rfl
 
@@ -459,13 +429,19 @@ lemma degree_regularisation_step_B {k : ℕ} {p₀ : ℝ} {C : book_config χ} :
 lemma degree_regularisation_step_X_subset {k : ℕ} {p₀ : ℝ} {C : book_config χ} :
   (degree_regularisation_step k p₀ C).X ⊆ C.X := filter_subset _ _
 
-noncomputable def useful_blue_books (χ : top_edge_labelling V (fin 2)) (μ : ℝ) (X : finset V) :
+end
+
+/-- Get the set of appropriately sized blue books contained in `X`. We will take a maximal
+one of these later. -/
+noncomputable def useful_blue_books {V : Type*} [decidable_eq V] (χ : top_edge_labelling V (fin 2))
+  (μ : ℝ) (X : finset V) :
   finset (finset V × finset V) :=
 (X.powerset.product X.powerset).filter
   (λ ST, disjoint ST.1 ST.2 ∧ χ.monochromatic_of ST.1 1 ∧ χ.monochromatic_between ST.1 ST.2 1
     ∧ μ ^ ST.1.card * X.card / 2 ≤ ST.2.card)
 
-lemma mem_useful_blue_books {μ : ℝ} {X : finset V} {ST : finset V × finset V} :
+lemma mem_useful_blue_books
+  {μ : ℝ} {X : finset V} {ST : finset V × finset V} :
   ST ∈ useful_blue_books χ μ X ↔
     ST.1 ⊆ X ∧ ST.2 ⊆ X ∧ disjoint ST.1 ST.2 ∧ χ.monochromatic_of ST.1 1 ∧
       χ.monochromatic_between ST.1 ST.2 1 ∧ μ ^ ST.1.card * X.card / 2 ≤ ST.2.card :=
@@ -487,7 +463,7 @@ begin
   exact half_le_self (nat.cast_nonneg _),
 end
 
-lemma exists_blue_book_one_le_S (μ : ℝ) (X : finset V)
+lemma exists_blue_book_one_le_S [fintype V] (μ : ℝ) (X : finset V)
   (hX : ∃ x ∈ X, μ * X.card ≤ (blue_neighbors χ x ∩ X).card) :
   ∃ ST : finset V × finset V, ST ∈ useful_blue_books χ μ X ∧ 1 ≤ ST.1.card :=
 begin
@@ -511,11 +487,13 @@ begin
   positivity
 end
 
-lemma exists_maximal_blue_book_aux (χ : top_edge_labelling V (fin 2)) (μ : ℝ) (X : finset V) :
+lemma exists_maximal_blue_book_aux (χ : top_edge_labelling V (fin 2))
+  (μ : ℝ) (X : finset V) :
   ∃ (ST ∈ useful_blue_books χ μ X), ∀ (ST' ∈ useful_blue_books χ μ X),
     finset.card (prod.fst ST') ≤ finset.card (prod.fst ST) :=
 finset.exists_max_image (useful_blue_books χ μ X) (λ ST, ST.1.card) (exists_useful_blue_book _ _)
 
+/-- Get a maximal book contained in `X`. -/
 noncomputable def get_book (χ : top_edge_labelling V (fin 2)) (μ : ℝ) (X : finset V) :
   finset V × finset V :=
 (exists_maximal_blue_book_aux χ μ X).some
@@ -547,6 +525,10 @@ lemma get_book_max {μ : ℝ} {X : finset V} (S T : finset V)
   (hST : (S, T) ∈ useful_blue_books χ μ X) : S.card ≤ (get_book χ μ X).1.card :=
 (exists_maximal_blue_book_aux χ μ X).some_spec.some_spec (S, T) hST
 
+section
+
+variable [fintype V]
+
 lemma one_le_card_get_book_fst {μ : ℝ} {X : finset V}
   (hX : ∃ x ∈ X, μ * X.card ≤ (blue_neighbors χ x ∩ X).card) :
   1 ≤ (get_book χ μ X).1.card :=
@@ -565,6 +547,7 @@ begin
   exact get_book_disjoints
 end
 
+/-- The number of vertices with a large blue neighbourhood. -/
 noncomputable def num_big_blues (μ : ℝ) (C : book_config χ) : ℕ :=
   (C.X.filter (λ x, μ * C.X.card ≤ (blue_neighbors χ x ∩ C.X).card)).card
 
@@ -582,6 +565,9 @@ begin
   positivity,
 end
 
+end
+
+/-- Perform a big blue step, picking an appropriate blue book. -/
 noncomputable def big_blue_step (μ : ℝ) (C : book_config χ) : book_config χ :=
 big_blue_step_basic C (get_book χ μ C.X).1 (get_book χ μ C.X).2 get_book_fst_subset
   get_book_snd_subset get_book_blue_fst get_book_disjoints get_book_blue_fst_snd
@@ -598,6 +584,11 @@ lemma big_blue_step_A {μ : ℝ} {C : book_config χ} :
 lemma big_blue_step_B {μ : ℝ} {C : book_config χ} :
   (big_blue_step μ C).B = C.B ∪ (get_book χ μ C.X).1 := rfl
 
+section
+
+variable [fintype V]
+
+/-- The set of viable central vertices. -/
 noncomputable def central_vertices (μ : ℝ) (C : book_config χ) : finset V :=
 C.X.filter (λ x, ↑(blue_neighbors χ x ∩ C.X).card ≤ μ * C.X.card)
 
@@ -606,6 +597,7 @@ lemma exists_central_vertex (μ : ℝ) (C : book_config χ)
   ∃ x ∈ central_vertices μ C, ∀ y ∈ central_vertices μ C, weight χ C.X C.Y y ≤ weight χ C.X C.Y x :=
 exists_max_image _ _ (by rwa [central_vertices, filter_nonempty_iff])
 
+/-- Get the central vertex as in step 3. -/
 noncomputable def get_central_vertex (μ : ℝ) (C : book_config χ)
   (hX : ∃ x ∈ C.X, ↑(blue_neighbors χ x ∩ C.X).card ≤ μ * C.X.card) : V :=
 (exists_central_vertex μ C hX).some
@@ -647,8 +639,13 @@ begin
   simp,
 end
 
+end
+
 end book_config
 
+variable [fintype V]
+
+/-- The book algorithm as an infinite sequence which is eventually constantly nothing. -/
 noncomputable def algorithm_option (μ : ℝ) (k l : ℕ) (ini : book_config χ) :
     ℕ → option (book_config χ)
 | 0 := some ini
@@ -666,7 +663,7 @@ noncomputable def algorithm_option (μ : ℝ) (k l : ℕ) (ini : book_config χ)
           then C.big_blue_step μ
           else
         let x := C.get_central_vertex μ (C.get_central_vertex_condition h h') in
-        if C.p - α_function k (C.height k ini.p) ≤
+        if C.p - α_function k (height k ini.p C.p) ≤
             red_density χ (red_neighbors χ x ∩ C.X) (red_neighbors χ x ∩ C.Y)
           then C.red_step_basic x (C.get_central_vertex_mem_X _ _)
           else C.density_boost_step_basic x (C.get_central_vertex_mem_X _ _)
@@ -753,12 +750,23 @@ begin
   linarith only [this],
 end
 
+/-- The index of the final step. Also the number of steps the algorithm takes.
+The previous two sentences may have an off-by-one error.  -/
 noncomputable def final_step (μ : ℝ) (k l : ℕ) (ini : book_config χ) : ℕ :=
 Inf {i | algorithm_option μ k l ini (i + 1) = none}
 
+/--
+The book algorithm. `algorithm μ k l ini i` is the state of the algorithm after the `i`th step,
+when initialised with `μ`, `k, l` and initial configuration `ini`.
+
+If we are *after* the termination has applied, this just gives `ini`. That is, this is the correct
+definition of the book algorithm *as long as* `i ≤ final_step μ k l ini`, in other words it's
+correct as long as the book algorithm hasn't finished.
+-/
 noncomputable def algorithm (μ : ℝ) (k l : ℕ) (ini : book_config χ) (i : ℕ) : book_config χ :=
 (algorithm_option μ k l ini i).get_or_else ini
 
+/-- The configuration at the end of the book algorithm. -/
 noncomputable def end_state (μ : ℝ) (k l : ℕ) (ini : book_config χ) : book_config χ :=
   algorithm μ k l ini (final_step μ k l ini)
 
@@ -847,7 +855,7 @@ lemma algorithm_succ (hi : i < final_step μ k l ini) :
     else
   let x := C.get_central_vertex μ
             (C.get_central_vertex_condition (succeed_of_final_step_le' hi) h') in
-  if C.p - α_function k (C.height k ini.p) ≤
+  if C.p - α_function k (height k ini.p C.p) ≤
       red_density χ (red_neighbors χ x ∩ C.X) (red_neighbors χ x ∩ C.Y)
     then C.red_step_basic x (C.get_central_vertex_mem_X _ _)
     else C.density_boost_step_basic x (C.get_central_vertex_mem_X _ _) :=
@@ -858,14 +866,17 @@ begin
     algorithm_option._match_1, dif_neg (succeed_of_final_step_le' hi)],
 end
 
+/-- The set of degree regularisation steps. Note this is indexed differently than the paper. -/
 noncomputable def degree_steps (μ : ℝ) (k l : ℕ) (ini : book_config χ) : finset ℕ :=
 (range (final_step μ k l ini)).filter even
 
+/-- The set of big blue steps. Note this is indexed differently than the paper. -/
 noncomputable def big_blue_steps (μ : ℝ) (k l : ℕ) (ini : book_config χ) : finset ℕ :=
 (range (final_step μ k l ini)).filter
   (λ i, ¬ even i ∧ ramsey_number ![k, ⌈(l : ℝ) ^ (2 / 3 : ℝ)⌉₊] ≤
     (algorithm μ k l ini i).num_big_blues μ)
 
+/-- The set of red or density steps. Note this is indexed differently than the paper. -/
 noncomputable def red_or_density_steps (μ : ℝ) (k l : ℕ) (ini : book_config χ) : finset ℕ :=
 (range (final_step μ k l ini)).filter
   (λ i, ¬ even i ∧
@@ -906,6 +917,7 @@ begin
   exact hi.2.2,
 end
 
+/-- The choice of `x` in a red or density step. -/
 noncomputable def get_x (hi : i ∈ red_or_density_steps μ k l ini) : V :=
 (algorithm μ k l ini i).get_central_vertex μ
   ((algorithm μ k l ini i).get_central_vertex_condition
@@ -915,19 +927,21 @@ lemma get_x_mem_central_vertices (i : ℕ) (hi : i ∈ red_or_density_steps μ k
   get_x hi ∈ (algorithm μ k l ini i).central_vertices μ :=
 (algorithm μ k l ini i).get_central_vertex_mem _ _
 
+/-- The set of red steps. -/
 noncomputable def red_steps (μ : ℝ) (k l : ℕ) (ini : book_config χ) : finset ℕ :=
 finset.image coe $ (red_or_density_steps μ k l ini).attach.filter $
   λ i, let x := get_x i.prop,
            C := algorithm μ k l ini i in
-    C.p - α_function k (C.height k ini.p) ≤
+    C.p - α_function k (height k ini.p C.p) ≤
       red_density χ (red_neighbors χ x ∩ C.X) (red_neighbors χ x ∩ C.Y)
 
+/-- The set of density boost steps. -/
 noncomputable def density_steps (μ : ℝ) (k l : ℕ) (ini : book_config χ) : finset ℕ :=
 finset.image coe $ (red_or_density_steps μ k l ini).attach.filter $
   λ i, let x := get_x i.prop,
            C := algorithm μ k l ini i in
     red_density χ (red_neighbors χ x ∩ C.X) (red_neighbors χ x ∩ C.Y) <
-      C.p - α_function k (C.height k ini.p)
+      C.p - α_function k (height k ini.p C.p)
 
 lemma red_steps_subset_red_or_density_steps :
   red_steps μ k l ini ⊆ red_or_density_steps μ k l ini :=
@@ -1137,6 +1151,7 @@ begin
     refl },
 end
 
+/-- Define `β` from the paper. -/
 noncomputable def blue_X_ratio (μ : ℝ) (k l : ℕ) (ini : book_config χ) (i : ℕ) : ℝ :=
 if h : i ∈ red_or_density_steps μ k l ini
   then

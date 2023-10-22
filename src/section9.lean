@@ -1,7 +1,14 @@
-import analysis.special_functions.log.base
-
+/-
+Copyright (c) 2023 Bhavik Mehta. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Bhavik Mehta
+-/
 import section8
+import prereq.mathlib.analysis.special_functions.log.base
 
+/-!
+# Section 9
+-/
 namespace simple_graph
 
 open_locale big_operators exponential_ramsey nat real
@@ -436,7 +443,7 @@ begin
       ←inv_rpow (sub_nonneg_of_le hγ₁.le)],
     refine rpow_le_rpow (exp_pos _).le (exp_le_one_sub_inv hγ₁) (sub_nonneg_of_le _),
     rw nat.cast_le,
-    exact four_four_red _ (hk₀ _ hlk).ne' (hk₀ _ le_rfl).ne' hχ _ },
+    exact four_four_red _ hχ _ },
   rw mul_right_comm at h₁,
   clear hn hδ hχ hini hn' hγ,
   replace h₁ := (mul_le_mul_of_nonneg_left this (by positivity)).trans h₁,
@@ -622,10 +629,10 @@ lemma strict_convex_on.const_mul {c : ℝ} {s : set ℝ} {f : ℝ → ℝ} (hf :
   hc).trans_eq (by simp only [smul_eq_mul]; ring_nf)⟩
 
 lemma convex_on_inv : convex_on ℝ (set.Ioi (0 : ℝ)) (λ x, x⁻¹) :=
-convex_on.congr (convex_on_zpow (-1)) (by simp)
+convex_on.congr' (convex_on_zpow (-1)) (by simp)
 
 lemma convex_on_one_div : convex_on ℝ (set.Ioi (0 : ℝ)) (λ x, 1 / x) :=
-convex_on.congr (convex_on_zpow (-1)) (by simp)
+convex_on.congr' (convex_on_zpow (-1)) (by simp)
 
 lemma quadratic_is_concave {a b c : ℝ} (ha : 0 < a) :
   strict_convex_on ℝ set.univ (λ x, a * x ^ 2 + b * x + c) :=
@@ -980,7 +987,7 @@ begin
   specialize hβ₀ k hlk γ hγl hγu n χ ini hp₀',
   specialize hf₂ k γ η hγl hη hγη n χ hχ ini hini hγu hγ₁ hlk hp₀',
   have htk : (red_steps γ k l ini).card ≤ k :=
-    four_four_red _ (hk₀ _ hlk).ne' (hk₀ _ le_rfl).ne' hχ _,
+    four_four_red _ hχ _,
   have : 2 ^ (-2 : ℝ) * (n : ℝ) ≤ ini.Y.card,
   { refine (nat.cast_le.2 hn').trans' ((ge_floor _).trans_eq' _),
     { rw [one_le_div (zero_lt_two' ℝ)],
@@ -1012,26 +1019,38 @@ end
 
 section
 
-variables {V : Type*} [fintype V] [decidable_eq V]
+variables {V : Type*}
 open fintype
 
 section
 
-def density (G : simple_graph V) [decidable_rel G.adj] : ℚ :=
+/-- The density of a simple graph. -/
+def density [fintype V] (G : simple_graph V) [fintype G.edge_set] : ℚ :=
 G.edge_finset.card / (card V).choose 2
 
-lemma edge_finset_eq_filter (G : simple_graph V) [decidable_rel G.adj] :
+lemma density_congr [fintype V] (G₁ G₂ : simple_graph V) [fintype G₁.edge_set] [fintype G₂.edge_set]
+  (h : G₁ = G₂) : G₁.density = G₂.density :=
+begin
+  rw [density, density, edge_finset_card, edge_finset_card],
+  congr' 2,
+  refine card_congr' _,
+  rw h
+end
+
+lemma edge_finset_eq_filter
+  [fintype (sym2 V)] (G : simple_graph V) [fintype G.edge_set] [decidable_rel G.adj] :
   G.edge_finset = univ.filter (∈ sym2.from_rel G.symm) :=
 begin
   rw [←finset.coe_inj, coe_edge_finset, coe_filter, coe_univ, set.sep_univ],
   refl
 end
 
-lemma univ_image_quotient_mk {α : Type*} (s : finset α) [fintype α] [decidable_eq α] :
+lemma univ_image_quotient_mk {α : Type*} (s : finset α) [decidable_eq α] :
   s.off_diag.image quotient.mk = s.sym2.filter (λ a, ¬ a.is_diag) :=
 (sym2.filter_image_quotient_mk_not_is_diag _).symm
 
-lemma edge_finset_eq_filter_filter (G : simple_graph V) [decidable_rel G.adj] :
+lemma edge_finset_eq_filter_filter [decidable_eq V] [fintype (sym2 V)] (G : simple_graph V)
+  [fintype G.edge_set] [decidable_rel G.adj] :
   G.edge_finset = (univ.filter (λ a : sym2 V, ¬ a.is_diag)).filter (∈ sym2.from_rel G.symm) :=
 begin
   rw [edge_finset_eq_filter, filter_filter],
@@ -1043,7 +1062,8 @@ begin
   exact h.ne,
 end
 
-lemma edge_finset_eq_filter' (G : simple_graph V) [decidable_rel G.adj] :
+lemma edge_finset_eq_filter' [fintype V] [decidable_eq V] (G : simple_graph V) [fintype G.edge_set]
+  [decidable_rel G.adj] :
   G.edge_finset = (univ.off_diag.image quotient.mk).filter (∈ sym2.from_rel G.symm) :=
 by rw [edge_finset_eq_filter_filter, ←sym2_univ, ←univ_image_quotient_mk]
 
@@ -1084,7 +1104,8 @@ begin
   simp [h.1, h.2.2, ne.symm h.2.1],
 end
 
-lemma density_eq_average (G : simple_graph V) [decidable_rel G.adj] :
+lemma density_eq_average [fintype V] [decidable_eq V] (G : simple_graph V) [fintype G.edge_set]
+  [decidable_rel G.adj] :
   G.density =
     (card V * (card V - 1))⁻¹ * ∑ x : V, ∑ y in univ.erase x, if G.adj x y then 1 else 0 :=
 begin
@@ -1094,16 +1115,18 @@ begin
   refl
 end
 
-lemma density_eq_average' (G : simple_graph V) [decidable_rel G.adj] :
-  G.density =
-    (card V * (card V - 1))⁻¹ * ∑ x y : V, if G.adj x y then 1 else 0 :=
+lemma density_eq_average' [fintype V] (G : simple_graph V) [fintype G.edge_set]
+  [decidable_rel G.adj] :
+  G.density = (card V * (card V - 1))⁻¹ * ∑ x y : V, if G.adj x y then 1 else 0 :=
 begin
+  classical,
   rw [density_eq_average],
   congr' 2 with x : 1,
   simp
 end
 
-lemma density_eq_average_neighbors (G : simple_graph V) [decidable_rel G.adj] :
+lemma density_eq_average_neighbors [fintype V] (G : simple_graph V) [fintype G.edge_set]
+  [decidable_rel G.adj] :
   G.density = (card V * (card V - 1))⁻¹ * ∑ x : V, (G.neighbor_finset x).card :=
 begin
   rw [density_eq_average'],
@@ -1111,7 +1134,8 @@ begin
   simp [neighbor_finset_eq_filter],
 end
 
-lemma density_compl (G : simple_graph V) [decidable_rel G.adj] (h : 2 ≤ card V) :
+lemma density_compl [fintype V] (G : simple_graph V) [fintype G.edge_set] [fintype Gᶜ.edge_set]
+  (h : 2 ≤ card V) :
   Gᶜ.density = 1 - G.density :=
 begin
   rw [simple_graph.density, card_compl_edge_finset_eq, nat.cast_sub edge_finset_card_le,
@@ -1148,7 +1172,7 @@ begin
   { simp },
 end
 
-lemma sum_powerset_len_insert {α β : Type*} [fintype α] [decidable_eq α] [add_comm_monoid β] {n : ℕ}
+lemma sum_powerset_len_insert {α β : Type*} [decidable_eq α] [add_comm_monoid β] {n : ℕ}
   {s : finset α} (f : finset α → α → β) :
   ∑ U in powerset_len (n + 1) s, ∑ x in U, f U x =
     ∑ x in s, ∑ U in powerset_len n (s.erase x), f (insert x U) x :=
@@ -1222,7 +1246,10 @@ begin
   { linarith }
 end
 
-lemma density_eq_average_partition (G : simple_graph V) [decidable_rel G.adj] (n : ℕ)
+variables [fintype V]
+
+lemma density_eq_average_partition [decidable_eq V]
+  (G : simple_graph V) [decidable_rel G.adj] [fintype G.edge_set] (n : ℕ)
   (hn₀ : 0 < n) (hn : n < card V) :
   G.density = ((card V).choose n)⁻¹ * ∑ U in powerset_len n univ, G.edge_density U Uᶜ :=
 begin
@@ -1251,8 +1278,9 @@ begin
   rw [choose_helper hn],
 end
 
-lemma exists_density_edge_density (G : simple_graph V) [decidable_rel G.adj] (n : ℕ)
-  (hn₀ : 0 < n) (hn : n < card V) :
+lemma exists_density_edge_density [decidable_eq V] (G : simple_graph V) [decidable_rel G.adj]
+  [fintype G.edge_set]
+  (n : ℕ) (hn₀ : 0 < n) (hn : n < card V) :
   ∃ U : finset V, U.card = n ∧ G.density ≤ G.edge_density U Uᶜ :=
 begin
   suffices : ∃ U ∈ powerset_len n (univ : finset V), G.density ≤ G.edge_density U Uᶜ,
@@ -1267,10 +1295,12 @@ begin
 end
 
 lemma exists_equibipartition_edge_density (G : simple_graph V) [decidable_rel G.adj]
+  [fintype G.edge_set]
   (hn : 2 ≤ card V) :
   ∃ X Y : finset V, disjoint X Y ∧ ⌊(card V / 2 : ℝ)⌋₊ ≤ X.card ∧ ⌊(card V / 2 : ℝ)⌋₊ ≤ Y.card
     ∧ G.density ≤ G.edge_density X Y :=
 begin
+  classical,
   rw [←nat.cast_two, nat.floor_div_eq_div],
   have h₁ : 0 < card V / 2 := nat.div_pos hn two_pos,
   have h₂ : card V / 2 < card V := nat.div_lt_self (pos_of_gt hn) one_lt_two,
@@ -1282,7 +1312,9 @@ end
 
 end
 
-def top_edge_labelling.density {K : Type*} [decidable_eq K] (χ : top_edge_labelling V K) (k : K) :
+/--  The density of a label in the edge labelling. -/
+def top_edge_labelling.density [fintype V] {K : Type*} (χ : top_edge_labelling V K)
+  (k : K) [fintype (χ.label_graph k).edge_set] :
   ℝ := density (χ.label_graph k)
 
 lemma exists_equibipartition_col_density {n : ℕ}
@@ -1297,12 +1329,16 @@ begin
   all_goals { simp }
 end
 
-lemma density_zero_one (χ : top_edge_labelling V (fin 2)) (h : 2 ≤ card V) :
+lemma density_zero_one [fintype V] (χ : top_edge_labelling V (fin 2))
+  [fintype (χ.label_graph 0).edge_set] [fintype (χ.label_graph 1).edge_set]
+  (h : 2 ≤ card V) :
   χ.density 0 = 1 - χ.density 1 :=
 begin
+  classical,
   rw [top_edge_labelling.density, top_edge_labelling.density, ←rat.cast_one, ←rat.cast_sub,
-    rat.cast_inj, ←density_compl _ h],
-  simp only [←to_edge_labelling_label_graph_compl, label_graph_to_edge_labelling χ],
+    rat.cast_inj, ←density_compl (χ.label_graph 1) h],
+  refine density_congr _ _ _,
+  rw [←to_edge_labelling_label_graph_compl, label_graph_to_edge_labelling],
 end
 
 end
@@ -1329,7 +1365,7 @@ begin
   { norm_num },
 end
 
-lemma nine_two_numeric {γ η : ℝ} (hγl : 0 ≤ γ) (hγu : γ ≤ 1 / 10) (hηγ : η ≤ γ / 15) :
+lemma nine_two_numeric {γ η : ℝ} (hγu : γ ≤ 1 / 10) (hηγ : η ≤ γ / 15) :
   exp (- 1 / 3 + 1 / 5) ≤ (1 - γ - η) ^ (1 / (1 - γ)) :=
 begin
   refine (nine_two_numeric_aux hγu hηγ).trans' _,
@@ -1437,7 +1473,7 @@ lemma nine_two_part_five {k t : ℕ} {η γ γ₀ δ fk : ℝ} (hη₀ : 0 ≤ �
 begin
   rw [mul_right_comm _ ((1 - γ - η) ^ (_ : ℝ)), mul_right_comm, mul_assoc],
   refine (mul_le_mul_of_nonneg_left (nine_two_part_two hγ₀'.le hγu hηγ ht hk
-    (nine_two_numeric hγ₀'.le hγu hηγ)) _).trans' _,
+    (nine_two_numeric hγu hηγ)) _).trans' _,
   { exact mul_nonneg (exp_pos _).le (pow_nonneg (div_nonneg h₂
       (sub_pos_of_lt hγ₁).le) _) },
   rw [mul_right_comm, ←real.exp_add],
@@ -1475,7 +1511,7 @@ end
 -- TODO: move
 section
 
-variables {V K : Type*} [decidable_eq K] [fintype K] {n : K → ℕ}
+variables {V K : Type*} {n : K → ℕ}
 
 lemma ramsey_number_le_finset_aux {s : finset V} (C : top_edge_labelling V K)
   (h : ∃ (m : finset s) (c : K),
@@ -1492,8 +1528,8 @@ end
 
 -- there should be a version of this for is_ramsey_valid and it should be useful *for* the proof
 -- that ramsey numbers exist
-lemma ramsey_number_le_finset {s : finset V} (h : ramsey_number n ≤ s.card)
-  (C : top_edge_labelling V K) :
+lemma ramsey_number_le_finset [decidable_eq K] [fintype K] {s : finset V}
+  (h : ramsey_number n ≤ s.card) (C : top_edge_labelling V K) :
   ∃ (m : finset V) (c : K), m ⊆ s ∧ C.monochromatic_of m c ∧ n c ≤ m.card :=
 begin
   have : ramsey_number n ≤ fintype.card s, { rwa fintype.card_coe },
@@ -1563,10 +1599,11 @@ begin
     refine ⟨(end_state γ k l ini).red_A, hm₁, _⟩,
     exact (end_state γ k l ini).red_XYA.symm.subset_right (hm₀.trans (subset_union_right _ _)) },
   rwa [card_union_eq, add_le_add_iff_right],
-  { exact t_le_A_card γ (hk₀ k hlk).ne' (hk₀ l le_rfl).ne' ini },
+  { exact t_le_A_card γ k l ini },
   exact (end_state γ k l ini).hYA.symm.mono_right hm₀,
 end
 
+/-- A finite set viewed as a finset is equivalent to itself. -/
 def equiv.to_finset {α : Type*} {s : set α} [fintype s] : s.to_finset ≃ s :=
 ⟨λ x, ⟨x, by simpa using x.2⟩, λ x, ⟨x, by simp⟩, λ x, subtype.ext rfl, λ x, subtype.ext rfl⟩
 
@@ -1589,6 +1626,7 @@ begin
   exact equiv.to_finset.trans (e.map_edge_set.trans equiv.to_finset.symm),
 end
 
+/-- Pulling back a colouring along an equivalence induces a graph isomorphism -/
 def label_graph_iso {V V' K : Type*} {χ : top_edge_labelling V K} (k : K) (f : V' ≃ V) :
   (χ.pullback f.to_embedding).label_graph k ≃g χ.label_graph k :=
 { to_equiv := f,
@@ -1608,7 +1646,7 @@ lemma nine_two_variant (γ₀ : ℝ) (hγ₀ : 0 < γ₀) :
   (∃ (m : finset V) (c : fin 2), χ.monochromatic_of m c ∧ ![k, l] c ≤ m.card) :=
 begin
   filter_upwards [nine_two γ₀ hγ₀] with l hl
-    k γ δ η hγ hγl hγu hδ hη hηγ V _inst_1 _inst_2 χ hχ hn,
+    k γ δ η hγ hγl hγu hδ hη hηγ V _ _ χ hχ hn,
   resetI,
   obtain ⟨e⟩ := fintype.trunc_equiv_fin V,
   let χ' : top_edge_labelling (fin (fintype.card V)) (fin 2) := χ.pullback e.symm.to_embedding,
@@ -1660,25 +1698,27 @@ begin
   { positivity },
 end
 
-noncomputable def U_lower_bound_ratio (k l m : ℕ) : ℝ :=
-(1 + 1 / 16) ^ m * ∏ i in range m, (l - i) / (k + l - i)
+/-- Part of the right hand side of (50) -/
+noncomputable def U_lower_bound_ratio (ξ : ℝ) (k l m : ℕ) : ℝ :=
+(1 + ξ) ^ m * ∏ i in range m, (l - i) / (k + l - i)
 
-lemma U_lower_bound_ratio_eq (k l m : ℕ) :
-  U_lower_bound_ratio k l m = ∏ i in range m, ((1 + 1 / 16) * ((l - i) / (k + l - i))) :=
+lemma U_lower_bound_ratio_eq {ξ : ℝ} (k l m : ℕ) :
+  U_lower_bound_ratio ξ k l m = ∏ i in range m, ((1 + ξ) * ((l - i) / (k + l - i))) :=
 begin
   rw [U_lower_bound_ratio, prod_mul_distrib],
   simp,
 end
 
-lemma U_lower_bound_ratio_of_l_lt_m {k l m : ℕ} (h : l < m) :
-  U_lower_bound_ratio k l m = 0 :=
+lemma U_lower_bound_ratio_of_l_lt_m {ξ : ℝ} {k l m : ℕ} (h : l < m) :
+  U_lower_bound_ratio ξ k l m = 0 :=
 begin
   rw ←mem_range at h,
   rw [U_lower_bound_ratio, prod_eq_zero h, mul_zero],
   rw [sub_self, zero_div],
 end
 
-lemma U_lower_bound_ratio_nonneg {k l m : ℕ} : 0 ≤ U_lower_bound_ratio k l m :=
+lemma U_lower_bound_ratio_nonneg {ξ : ℝ} {k l m : ℕ} (hξ : 0 ≤ ξ) :
+  0 ≤ U_lower_bound_ratio ξ k l m :=
 begin
   cases lt_or_le l m,
   { rw U_lower_bound_ratio_of_l_lt_m h },
@@ -1688,12 +1728,13 @@ begin
   { rw [sub_nonneg, nat.cast_le],
     exact h.trans' (mem_range.1 hi).le },
   rw [mem_range] at hi,
-  refine mul_nonneg (by norm_num1) (div_nonneg this _),
+  refine mul_nonneg (by linarith only [hξ]) (div_nonneg this _),
   rw [add_sub_assoc],
   exact add_nonneg (nat.cast_nonneg _) this
 end
 
-lemma U_lower_bound_ratio_pos {k l m : ℕ} (h : m ≤ l) : 0 < U_lower_bound_ratio k l m :=
+lemma U_lower_bound_ratio_pos {ξ : ℝ} {k l m : ℕ} (hξ : 0 ≤ ξ) (h : m ≤ l) :
+  0 < U_lower_bound_ratio ξ k l m :=
 begin
   rw U_lower_bound_ratio_eq,
   refine prod_pos _,
@@ -1706,25 +1747,25 @@ begin
   positivity
 end
 
-lemma U_lower_bound_decreasing (k l : ℕ) (hlk : l ≤ k) (hk : 0 < k) :
-  antitone (U_lower_bound_ratio k l) :=
+lemma U_lower_bound_decreasing {ξ : ℝ} (k l : ℕ) (hξ : 0 ≤ ξ) (hξ' : ξ ≤ 1)
+  (hlk : l ≤ k) (hk : 0 < k) :
+  antitone (U_lower_bound_ratio ξ k l) :=
 begin
   refine antitone_nat_of_succ_le _,
   intro m,
   cases le_or_lt l m,
   { rw U_lower_bound_ratio_of_l_lt_m,
-    { exact U_lower_bound_ratio_nonneg },
+    { exact U_lower_bound_ratio_nonneg hξ },
     rwa nat.lt_add_one_iff },
   rw [U_lower_bound_ratio_eq, prod_range_succ, ←U_lower_bound_ratio_eq],
   refine mul_le_of_le_one_right _ _,
-  { exact U_lower_bound_ratio_nonneg },
+  { exact U_lower_bound_ratio_nonneg hξ },
   rw [mul_div_assoc', add_sub_assoc, ←nat.cast_sub h.le, div_le_one, add_comm, add_one_mul,
-    add_le_add_iff_right, div_mul_comm, mul_one, div_le_iff'],
-  rotate,
-  { norm_num1 },
-  { positivity },
-  norm_cast,
-  exact ((nat.sub_le _ _).trans hlk).trans (nat.le_mul_of_pos_left (by positivity)),
+    add_le_add_iff_right],
+  { refine (mul_le_of_le_one_left (nat.cast_nonneg _) hξ').trans _,
+    rw nat.cast_le,
+    exact (nat.sub_le _ _).trans hlk },
+  positivity
 end
 
 lemma xi_numeric : exp (1 / 20) < (1 + 1 / 16) :=
@@ -1739,7 +1780,7 @@ lemma U_lower_bound_ratio_lower_bound_aux_aux {k l m n : ℕ} {γ δ : ℝ} (hml
   (hγ : γ = l / (k + l)) (hδ : δ = γ / 20)
   (hg : (l - m : ℝ) / (k + l - m) < (l / (k + l)) ^ 2)
   (hn : exp (- δ * k) * (k + l).choose l ≤ n) :
-  ((k + l - m).choose k : ℝ) ≤ n * U_lower_bound_ratio k l m :=
+  ((k + l - m).choose k : ℝ) ≤ n * U_lower_bound_ratio (1 / 16) k l m :=
 begin
   have : ((l + k - m).choose _ : ℝ) / _ = _ := choose_ratio hml,
   rw [U_lower_bound_ratio, add_comm (k : ℝ), ←this],
@@ -1761,7 +1802,7 @@ lemma U_lower_bound_ratio_lower_bound_aux {k l m n : ℕ} {γ δ : ℝ} (hml : m
   (hγ : γ = l / (k + l)) (hδ : δ = γ / 20)
   (hg : (l - m : ℝ) / (k + l - m) < (l / (k + l)) ^ 2)
   (hn : exp (- δ * k) * (k + l).choose l ≤ n) :
-  (k : ℝ) ≤ n * U_lower_bound_ratio k l m :=
+  (k : ℝ) ≤ n * U_lower_bound_ratio (1 / 16) k l m :=
 begin
   refine (U_lower_bound_ratio_lower_bound_aux_aux hml.le hk₀ hγ hδ hg hn).trans' _,
   rw [nat.cast_le, add_tsub_assoc_of_le hml.le],
@@ -1776,7 +1817,7 @@ end
 lemma U_lower_bound_ratio_lower_bound' {k l m n : ℕ} {γ δ : ℝ} (hml : m < l) (hk₀ : 0 < k)
   (hlk : l ≤ k) (hγ : γ = l / (k + l)) (hδ : δ = γ / 20)
   (hn : exp (- δ * k) * (k + l).choose l ≤ n) (h : (k : ℝ) < (l - 2) * l) :
-  (k : ℝ) ≤ n * U_lower_bound_ratio k l m :=
+  (k : ℝ) ≤ n * U_lower_bound_ratio (1 / 16) k l m :=
 begin
   cases lt_or_le ((l - m : ℝ) / (k + l - m)) ((l / (k + l)) ^ 2) with h' h',
   { exact U_lower_bound_ratio_lower_bound_aux hml hk₀ hγ hδ h' hn },
@@ -1794,8 +1835,8 @@ begin
     rw [div_lt_iff, ←sub_pos],
     { ring_nf, exact h },
     { positivity } },
-  refine (U_lower_bound_ratio_lower_bound_aux this hk₀ hγ hδ _ hn).trans
-    (mul_le_mul_of_nonneg_left (U_lower_bound_decreasing k l hlk hk₀ hm.le) (nat.cast_nonneg _)),
+  refine (U_lower_bound_ratio_lower_bound_aux this hk₀ hγ hδ _ hn).trans (mul_le_mul_of_nonneg_left
+    (U_lower_bound_decreasing k l (by norm_num1) (by norm_num1) hlk hk₀ hm.le) (nat.cast_nonneg _)),
   rw [gamma'_le_gamma_iff this.le hk₀, nat.cast_add_one],
   exact nat.lt_floor_add_one _
 end
@@ -1808,11 +1849,14 @@ begin
   positivity
 end
 
-def is_good_clique {n : ℕ} (k l : ℕ) (χ : top_edge_labelling (fin n) (fin 2)) (x : finset (fin n)) :
-  Prop :=
-χ.monochromatic_of x 1 ∧ (n : ℝ) * (U_lower_bound_ratio k l x.card) ≤ (common_blues χ x).card
+/-- Cliques which are useful for section 9 and 10 -/
+def is_good_clique {n : ℕ} (ξ : ℝ) (k l : ℕ)
+  (χ : top_edge_labelling (fin n) (fin 2)) (x : finset (fin n)) : Prop :=
+χ.monochromatic_of x 1 ∧
+  (n : ℝ) * (U_lower_bound_ratio ξ k l x.card) ≤ (common_blues χ x).card
 
-lemma empty_is_good {n k l : ℕ} {χ : top_edge_labelling (fin n) (fin 2)} : is_good_clique k l χ ∅ :=
+lemma empty_is_good {n k l : ℕ} {ξ : ℝ} {χ : top_edge_labelling (fin n) (fin 2)} :
+  is_good_clique ξ k l χ ∅ :=
 begin
   split,
   { simp },
@@ -1820,9 +1864,9 @@ begin
   simp
 end
 
-lemma good_clique_bound {n k l} {χ : top_edge_labelling (fin n) (fin 2)} {x : finset (fin n)}
+lemma good_clique_bound {n k l ξ} {χ : top_edge_labelling (fin n) (fin 2)} {x : finset (fin n)}
   (hχ : ¬∃ (m : finset (fin n)) (c : fin 2), χ.monochromatic_of ↑m c ∧ ![k, l] c ≤ m.card)
-  (hx : is_good_clique k l χ x) :
+  (hx : is_good_clique ξ k l χ x) :
   x.card < l :=
 begin
   by_contra',
@@ -1873,24 +1917,30 @@ begin
   linarith,
 end
 
-lemma maximally_good_clique {n k l : ℕ} {χ : top_edge_labelling (fin n) (fin 2)}
+-- here
+lemma maximally_good_clique {n k l : ℕ} {ξ ξ' : ℝ} {χ : top_edge_labelling (fin n) (fin 2)}
+  (hξ : 0 ≤ ξ)
   (hχ : ¬∃ (m : finset (fin n)) (c : fin 2), χ.monochromatic_of ↑m c ∧ ![k, l] c ≤ m.card)
-  {x : finset (fin n)} (hU : 256 ≤ (common_blues χ x).card)
-  (hx : is_good_clique k l χ x) (h : ∀ y : finset (fin n), is_good_clique k l χ y → ¬ x ⊂ y) :
-  1 - (1 + 1 / 15) * ((l - x.card : ℝ) / (k + l - x.card)) ≤
+  {x : finset (fin n)}
+  (hU : ((common_blues χ x).card : ℝ) / ((common_blues χ x).card - 1) * (1 + ξ) ≤ 1 + ξ')
+  (hU' : 2 ≤ (common_blues χ x).card)
+  (hx : is_good_clique ξ k l χ x)
+  (h : ∀ i : fin n, i ∉ x → is_good_clique ξ k l χ (insert i x) → false) :
+  1 - (1 + ξ') * ((l - x.card : ℝ) / (k + l - x.card)) ≤
     (χ.pullback (function.embedding.subtype _ : common_blues χ x ↪ fin n)).density 0 :=
 begin
   classical,
   have hml := good_clique_bound hχ hx,
   rw [is_good_clique] at hx,
   have : ∀ i ∈ common_blues χ x, i ∉ x ∧
-    ¬ ((n : ℝ) * (U_lower_bound_ratio k l (insert i x).card) ≤ (common_blues χ (insert i x)).card),
+    ¬ ((n : ℝ) * (U_lower_bound_ratio ξ k l (insert i x).card) ≤
+      (common_blues χ (insert i x)).card),
   { intros i hi,
     rw [common_blues, mem_filter] at hi,
     have : i ∉ x,
     { intro h',
       exact not_mem_col_neighbors (hi.2 i h') },
-    refine ⟨this, λ hi', h (insert i x) ⟨_, hi'⟩ (ssubset_insert this)⟩,
+    refine ⟨this, λ hi', h i this ⟨_, hi'⟩⟩,
     rw [coe_insert, top_edge_labelling.monochromatic_of_insert],
     swap,
     { exact this },
@@ -1902,12 +1952,12 @@ begin
     exact z },
   have hz : ∀ i ∈ common_blues χ x,
     ((blue_neighbors χ i ∩ common_blues χ x).card : ℝ) <
-      (common_blues χ x).card * ((1 + 1 / 16) * ((l - x.card) / (k + l - x.card))),
+      (common_blues χ x).card * ((1 + ξ) * ((l - x.card) / (k + l - x.card))),
   { intros i hi,
     obtain ⟨hi', hi''⟩ := this i hi,
     rw [card_insert_of_not_mem hi', not_le, common_blues_insert, U_lower_bound_ratio_eq,
       prod_range_succ, ←U_lower_bound_ratio_eq, ←mul_assoc, add_sub_assoc] at hi'',
-    have : (0 : ℝ) < (1 + 1 / 16) * ((l - x.card) / (k + (l - x.card))),
+    have : (0 : ℝ) < (1 + ξ) * ((l - x.card) / (k + (l - x.card))),
     { have : (0 : ℝ) < l - x.card,
       { rwa [sub_pos, nat.cast_lt] },
       positivity },
@@ -1916,26 +1966,26 @@ begin
   rw [density_zero_one, maximally_good_clique_aux, sub_le_sub_iff_left],
   swap,
   { rw [fintype.subtype_card, filter_mem_eq_inter, univ_inter],
-    exact hU.trans' (by norm_num1) },
+    exact hU' },
   refine (mul_le_mul_of_nonneg_left (sum_le_sum (λ i hi, (hz i hi).le)) _).trans _,
   { rw [inv_nonneg],
     refine mul_nonneg (nat.cast_nonneg _) _,
     rw [sub_nonneg, nat.one_le_cast],
-    exact hU.trans' (by norm_num1) },
+    exact hU'.trans' (by norm_num1) },
   rw [sum_const, nsmul_eq_mul, inv_mul_eq_div, mul_div_mul_left, ←div_mul_eq_mul_div, ←mul_assoc],
   swap,
   { rw [nat.cast_ne_zero],
-    linarith only [hU] },
+    linarith only [hU'] },
   refine mul_le_mul_of_nonneg_right _ _,
   swap,
   { rw [add_sub_assoc, ←nat.cast_sub hml.le],
     positivity },
-  exact big_U hU
+  exact hU
 end
 
-lemma nine_one_end {k l n : ℕ} {χ : top_edge_labelling (fin n) (fin 2)} {x : finset (fin n)}
+lemma nine_one_end {k l n : ℕ} {ξ : ℝ} {χ : top_edge_labelling (fin n) (fin 2)} {x : finset (fin n)}
   (hχ : ¬∃ (m : finset (fin n)) (c : fin 2), χ.monochromatic_of ↑m c ∧ ![k, l] c ≤ m.card)
-  (hx : is_good_clique k l χ x)
+  (hx : is_good_clique ξ k l χ x)
   (h : ∃ (m : finset (fin n)) (c : fin 2), m ⊆ common_blues χ x ∧ χ.monochromatic_of ↑m c ∧
     ![k, l - x.card] c ≤ m.card) :
   false :=
@@ -1960,7 +2010,7 @@ lemma nine_one_part_two {k l n : ℕ} {γ δ : ℝ} {χ : top_edge_labelling (fi
   (hχ : ¬∃ (m : finset (fin n)) (c : fin 2), χ.monochromatic_of ↑m c ∧ ![k, l] c ≤ m.card)
   (hml : x.card < l) (hl₀ : 0 < l) (hlk : l ≤ k)
   (hγ : γ = l / (k + l)) (hδ : δ = γ / 20) (hm : exp (-δ * k) * (k + l).choose l ≤ n)
-  (hx : is_good_clique k l χ x)
+  (hx : is_good_clique (1 / 16) k l χ x)
   (hγ' : (l - x.card : ℝ) / (k + l - x.card) < (l / (k + l)) ^ 2) :
   false :=
 begin
@@ -1971,11 +2021,10 @@ begin
   exact nine_one_end hχ hx this
 end
 
-lemma nine_one_part_three {k l m n : ℕ} {γ γ' δ : ℝ} {χ : top_edge_labelling (fin n) (fin 2)}
-  (hχ : ¬∃ (m : finset (fin n)) (c : fin 2), χ.monochromatic_of ↑m c ∧ ![k, l] c ≤ m.card)
-  (hml : m < l) (hk₀ : 0 < k)
-  (hγ : γ = l / (k + l)) (hδ : δ = γ / 20) (hγ' : γ' = (l - m) / (k + l - m))
-  (h : exp (-δ * k) * ((k + l).choose l) * U_lower_bound_ratio k l m <
+lemma nine_one_part_three {k l m : ℕ} {γ γ' δ : ℝ}
+  (hml : m < l) (hk₀ : 0 < k) (hγ : γ = l / (k + l)) (hδ : δ = γ / 20)
+  (hγ' : γ' = (l - m) / (k + l - m))
+  (h : exp (-δ * k) * ((k + l).choose l) * U_lower_bound_ratio (1 / 16) k l m <
     exp (-(γ' / 20) * k) * ↑((k + (l - m)).choose (l - m))) :
   false :=
 begin
@@ -2016,7 +2065,7 @@ begin
   { positivity },
 end
 
-lemma l_minus_m_big (γ₀ : ℝ) (hγ₀ : 0 < γ₀) {k l m : ℕ} (hml : m ≤ l) (hl₀ : 0 < l)
+lemma l_minus_m_big (γ₀ : ℝ) {k l m : ℕ} (hml : m ≤ l) (hl₀ : 0 < l)
   (hkl : (k : ℝ) ≤ l * (γ₀⁻¹ - 1))
   (h₁ : 0 < γ₀⁻¹ - 1 + 2)
   (h₂ : 0 < (γ₀⁻¹ - 1 + 2)⁻¹)
@@ -2065,7 +2114,7 @@ begin
     exact this.trans' (nat.le_ceil _) },
   by_contra' hm,
   classical,
-  have : (univ.filter (is_good_clique k l χ)).nonempty :=
+  have : (univ.filter (is_good_clique (1 / 16) k l χ)).nonempty :=
     ⟨∅, by simp only [mem_filter, empty_is_good, mem_univ, true_and]⟩,
   obtain ⟨x, hx, hxy⟩ := exists_maximal _ this,
   simp only [mem_filter, mem_univ, true_and] at hx hxy,
@@ -2088,13 +2137,16 @@ begin
   have hγ'γ : γ' ≤ γ := (gamma'_le_gamma (hl₀.trans_le hlk) hml.le).trans_eq hγ.symm,
   have hlm : ⌈(l : ℝ) * (γ₀⁻¹ - 1 + 2)⁻¹⌉₊ ≤ l - m,
   { rw [←not_lt, gamma'_le_gamma_iff hml.le (hl₀.trans_le hlk), not_lt] at hγ',
-    exact l_minus_m_big _ hγ₀ hml.le hl₀ hkl h₁ h₂ hγ' },
+    exact l_minus_m_big _ hml.le hl₀ hkl h₁ h₂ hγ' },
   have hγ'_eq : γ' = ↑(l - m) / (↑k + ↑(l - m)),
   { rw [nat.cast_sub hml.le, add_sub_assoc'] },
   have hγ'₀ : 0 ≤ γ',
   { rw hγ'_eq,
     positivity },
-  have := maximally_good_clique hχ this hx hxy,
+  have hxy' : ∀ i ∉ x, is_good_clique (1 / 16) k l χ (insert i x) → false,
+  { intros i hi hi',
+    exact hxy (insert i x) hi' (ssubset_insert hi) },
+  have := maximally_good_clique (by norm_num1) hχ (big_U this) (this.trans' (by norm_num1)) hx hxy',
   rw [one_add_mul, mul_comm (1 / 15 : ℝ), mul_one_div, ←sub_sub] at this,
   specialize hk₉₂ (l - m) hlm k γ' (γ' / 20) (γ' / 15) hγ'_eq (hγ'.trans' (pow_le_pow_of_le_left
     hγ₀.le (hγl.trans_eq hγ) _)) (hγ'γ.trans hγu) rfl (div_nonneg hγ'₀ (by norm_num1)) le_rfl _ _ _
@@ -2102,8 +2154,9 @@ begin
   replace hk₉₂ := λ z, nine_one_end hχ hx (ramsey_number_le_finset_aux _ (hk₉₂ z)),
   rw [imp_false, not_le, fintype.subtype_card, filter_mem_eq_inter, univ_inter] at hk₉₂,
   replace hk₉₂ := hx.2.trans hk₉₂.le,
-  replace hk₉₂ := (mul_lt_mul_of_pos_right hm (U_lower_bound_ratio_pos hml.le)).trans_le hk₉₂,
-  exact nine_one_part_three hχ hml (hl₀.trans_le hlk) hγ hδ rfl hk₉₂,
+  replace hk₉₂ := (mul_lt_mul_of_pos_right hm (U_lower_bound_ratio_pos (by norm_num1)
+    hml.le)).trans_le hk₉₂,
+  exact nine_one_part_three hml (hl₀.trans_le hlk) hγ hδ rfl hk₉₂,
 end
 
 lemma nine_one_o_filter (γ₀ : ℝ) (hγ₀ : 0 < γ₀) :
@@ -2114,6 +2167,23 @@ lemma nine_one_o_filter (γ₀ : ℝ) (hγ₀ : 0 < γ₀) :
 begin
   refine ⟨λ i, 1, _, nine_one_precise _ hγ₀⟩,
   exact is_o.comp_tendsto (is_o_const_id_at_top _) tendsto_coe_nat_at_top_at_top,
+end
+
+lemma nine_one_nine : ∀ᶠ l in at_top, ∀ k, k = 9 * l →
+  (ramsey_number ![k, l] : ℝ) ≤ exp (- l / 25) * (k + l).choose l :=
+begin
+  filter_upwards [nine_one_precise (1 / 10) (by norm_num1), eventually_ge_at_top 200] with l hl hl'
+    k hk,
+  subst hk,
+  refine (hl (9 * l) (1 / 10) (1 / 10 / 20) _ le_rfl le_rfl rfl).trans _,
+  { rw [nat.cast_mul, ←add_one_mul, mul_comm, ←div_div, div_self],
+    { norm_num1 },
+    { positivity } },
+  refine mul_le_mul_of_nonneg_right (exp_le_exp.2 _) (nat.cast_nonneg _),
+  have : (200 : ℝ) ≤ l := by exact_mod_cast hl',
+  rw [nat.cast_mul],
+  norm_num1,
+  linarith
 end
 
 end simple_graph

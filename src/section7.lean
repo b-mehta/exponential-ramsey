@@ -1,5 +1,13 @@
+/-
+Copyright (c) 2023 Bhavik Mehta. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Bhavik Mehta
+-/
 import section6
 
+/-!
+# Section 7
+-/
 namespace simple_graph
 
 open_locale big_operators exponential_ramsey
@@ -17,9 +25,13 @@ end
 variables {V : Type*} [decidable_eq V] [fintype V] {χ : top_edge_labelling V (fin 2)}
 variables {k l : ℕ} {ini : book_config χ} {i : ℕ}
 
+/-- delete -/
 meta def my_X : tactic unit := tactic.to_expr ```((algorithm μ k l ini Ᾰ).X) >>= tactic.exact
+/-- all -/
 meta def my_t : tactic unit := tactic.to_expr ```((red_steps μ k l ini).card) >>= tactic.exact
+/-- of -/
 meta def my_s : tactic unit := tactic.to_expr ```((density_steps μ k l ini).card) >>= tactic.exact
+/-- these -/
 meta def my_h : tactic unit := tactic.to_expr ```(height k ini.p Ᾰ) >>= tactic.exact
 
 local notation `X_` := λ Ᾰ, by my_X
@@ -115,7 +127,7 @@ begin
   { rw [neg_div, neg_div, neg_le_neg_iff],
     exact div_le_div_of_le_left (by norm_num1) (sub_pos_of_lt hμ₁) (sub_le_sub_left hμu _) },
   { rw nat.cast_le,
-    exact four_four_red μ (hk₀ k hlk).ne' (hk₀ l le_rfl).ne' hχ ini },
+    exact four_four_red μ hχ ini },
   exact div_nonpos_of_nonpos_of_nonneg (by norm_num) (sub_pos_of_lt (hμu.trans_lt hμ₁)).le,
 end
 
@@ -229,10 +241,12 @@ end
 
 lemma height_p_zero {p₀ : ℝ} : height k p₀ p₀ = 1 := height_eq_one le_rfl
 
+/-- The set of moderate steps, S* -/
 noncomputable def moderate_steps (μ) (k l) (ini : book_config χ) : finset ℕ :=
 (density_steps μ k l ini).filter $
   λ i, (height k ini.p (p_ (i + 1)) : ℝ) - height k ini.p (p_ i) ≤ k ^ (1 / 16 : ℝ)
 
+/-- ugh -/
 meta def my_S_star : tactic unit := tactic.to_expr ```(moderate_steps μ k l ini) >>= tactic.exact
 
 local notation `𝒮⁺` := by my_S_star
@@ -399,7 +413,7 @@ begin
   filter_upwards [top_adjuster (eventually_gt_at_top 0),
     six_five_red, six_five_degree] with l hl₀ hk hk'
     k hlk μ n χ hχ ini,
-  have := four_four_red μ (hl₀ k hlk).ne' (hl₀ l le_rfl).ne' hχ ini,
+  have := four_four_red μ hχ ini,
   rw ←@nat.cast_le ℝ at this,
   refine (mul_le_mul_of_nonpos_left this (by norm_num1)).trans _,
   rw [mul_comm, ←nsmul_eq_mul],
@@ -480,6 +494,7 @@ begin
   exact hk' k hlk
 end
 
+/-- The parameter `β` of the algorithm. -/
 noncomputable def beta (μ : ℝ) (k l : ℕ) (ini : book_config χ) : ℝ :=
 if 𝒮⁺ = ∅ then μ
   else (moderate_steps μ k l ini).card * (∑ i in 𝒮⁺, 1 / blue_X_ratio μ k l ini i)⁻¹
@@ -1046,7 +1061,7 @@ begin
   have h₁ : (-2 : ℝ) * k ≤ ∑ i in red_or_density_steps μ k l ini,
     ((height k ini.p (algorithm μ k l ini (i + 1)).p : ℝ) -
       height k ini.p (algorithm μ k l ini i).p),
-  { have := four_four_red μ (hl₀ k hlk).ne' (hl₀ l le_rfl).ne' hχ ini,
+  { have := four_four_red μ hχ ini,
     rw ←@nat.cast_le ℝ at this,
     refine (mul_le_mul_of_nonpos_left this (by norm_num1)).trans _,
     rw [mul_comm, ←nsmul_eq_mul, ←red_steps_union_density_steps,
@@ -1096,6 +1111,7 @@ begin
   exact hl₀ k hlk
 end
 
+/-- `q*` -/
 noncomputable def q_star (k : ℕ) (p₀ : ℝ) : ℝ := p₀ + k ^ (1 / 16 : ℝ) * α_function k 1
 lemma q_star_eq (k : ℕ) (p₀ : ℝ) : q_star k p₀ = p₀ + k ^ (-19 / 16 : ℝ) :=
 begin
@@ -1254,7 +1270,7 @@ begin
     k hlk μ n χ hχ ini,
   refine (card_nsmul_le_sum _ _ _ (hr k hlk μ n χ hχ ini)).trans' _,
   rw [nsmul_eq_mul', neg_mul, neg_mul, neg_mul, neg_le_neg_iff],
-  refine mul_le_mul _ (nat.cast_le.2 (four_four_red μ (h₀ _ hlk).ne' (h₀ _ le_rfl).ne' hχ ini))
+  refine mul_le_mul _ (nat.cast_le.2 (four_four_red μ hχ ini))
     (nat.cast_nonneg _) (mul_nonneg zero_lt_two.le (α_nonneg _ _)),
   rw [α_one, α_function, mul_div_assoc', mul_comm, nat.add_succ_sub_one],
   refine div_le_div_of_le (nat.cast_nonneg _) (mul_le_mul_of_nonneg_right _ (by positivity)),
@@ -1623,8 +1639,8 @@ begin
   specialize h712 k hlk μ hμl hμu n χ hχ ini hini,
   specialize h43 k hlk μ hμl n χ hχ ini,
   rw [degree_steps],
-  have : ((range (final_step μ k l ini)).filter even).image nat.succ ⊆ (range (final_step μ k l ini +
-    1)).filter (λ i, ¬ even i),
+  have : ((range (final_step μ k l ini)).filter even).image nat.succ ⊆
+    (range (final_step μ k l ini + 1)).filter (λ i, ¬ even i),
   { simp only [finset.subset_iff, mem_filter, mem_image, and_imp, exists_prop, and_assoc,
       mem_range, forall_exists_index, nat.succ_eq_add_one],
     rintro _ y hy hy' rfl,
@@ -1805,16 +1821,20 @@ begin
   induction j with j ih,
   { rw [prod_range_zero, algorithm_zero, div_self],
     rw [nat.cast_ne_zero, ←pos_iff_ne_zero, card_pos],
-    exact h,
-    -- intro h',
-    -- rw [book_config.p, h', col_density_empty_left] at h,
-    -- exact hp₀.not_le h
-    },
+    exact h },
   rw nat.succ_le_iff at hj,
   rw [prod_range_succ, ←ih hj.le, mul_comm, div_mul_div_cancel],
   rw [nat.cast_ne_zero, ←pos_iff_ne_zero, card_pos],
   exact X_nonempty hj
 end
+
+lemma seven_one_calc {frk fbk fsk fdk μ β : ℝ} {s_ t_ : ℕ} :
+  2 ^ frk * 2 ^ fbk * 2 ^ fsk * 2 ^ fdk * μ ^ l * (1 - μ) ^ t_ *
+    (β ^ s_ * (μ ^ s_)⁻¹) =
+  2 ^ fbk *
+    (μ ^ l * (μ ^ s_)⁻¹) * (2 ^ frk * (1 - μ) ^ t_) *
+      (2 ^ fsk * β ^ s_) * 2 ^ fdk :=
+by ring_nf
 
 lemma seven_one (μ₁ : ℝ) (hμ₁ : μ₁ < 1) :
   ∃ f : ℕ → ℝ, f =o[at_top] (λ i, (i : ℝ)) ∧
@@ -1860,7 +1880,7 @@ begin
     (2 ^ fd k),
   { rw [pow_sub₀ _ (hμ₀.trans_le hμl).ne' this, div_pow, div_eq_mul_inv, rpow_add two_pos,
       rpow_add two_pos, rpow_add two_pos],
-    ring_nf },
+    exact seven_one_calc },
   rw this,
   have : (0 : ℝ) ≤ ∏ i in ℛ,
     ((algorithm μ k l ini (i + 1)).X.card : ℝ) / ((algorithm μ k l ini i).X.card : ℝ),

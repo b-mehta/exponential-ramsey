@@ -1,7 +1,15 @@
+/-
+Copyright (c) 2023 Bhavik Mehta. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Bhavik Mehta
+-/
+import section4
+import prereq.graph_probability
 import algebra.order.chebyshev
 
-import prereq.graph_probability
-import section4
+/-!
+# Section 5
+-/
 
 open real
 
@@ -21,7 +29,7 @@ namespace simple_graph
 
 open_locale exponential_ramsey
 
-open filter finset nat
+open filter finset
 
 lemma top_adjuster {α : Type*} [semilattice_sup α] [nonempty α] {p : α → Prop}
   (h : ∀ᶠ k : α in at_top, p k) :
@@ -102,7 +110,7 @@ lemma one_lt_q_function : ∀ᶠ k : ℕ in at_top,
   ∀ p₀ : ℝ, 0 ≤ p₀ →
   1 ≤ q_function k p₀ ⌊2 / ((k : ℝ) ^ (-1 / 4 : ℝ)) * log k⌋₊ :=
 begin
-  have hc : 1 < log 2 * (4 / 5 * 2),
+  have hc : (1 : ℝ) < real.log 2 * (4 / 5 * 2),
   { rw [←div_lt_iff],
     { exact log_two_gt_d9.trans_le' (by norm_num) },
     norm_num },
@@ -127,7 +135,7 @@ begin
   swap,
   { positivity },
   have : log 2 * (4 / 5 * 2) ≤ log (1 + ε) * (4 / 5) * (2 / ε),
-  { rw [mul_div_assoc' _ _ ε, le_div_iff' hε, ←mul_assoc, mul_assoc (log _)],
+  { rw [mul_div_assoc' _ _ ε, le_div_iff' hε, ←mul_assoc, mul_assoc (real.log _)],
     refine mul_le_mul_of_nonneg_right (mul_log_two_le_log_one_add hε.le hε₁) _,
     norm_num1 },
   refine (rpow_le_rpow_of_exponent_le hk₁ this).trans' _,
@@ -139,9 +147,9 @@ end
 lemma height_upper_bound : ∀ᶠ k : ℕ in at_top,
   ∀ p₀ : ℝ, 0 ≤ p₀ →
   ∀ p : ℝ, p ≤ 1 →
-  (height k p₀ p : ℝ) ≤ 2 / (k : ℝ) ^ (-1 / 4 : ℝ) * log k :=
+  (height k p₀ p : ℝ) ≤ 2 / (k : ℝ) ^ (-1 / 4 : ℝ) * real.log k :=
 begin
-  have : tendsto (λ k : ℝ, ⌊2 / (k : ℝ) ^ (-1 / 4 : ℝ) * log k⌋₊) at_top at_top,
+  have : tendsto (λ k : ℝ, ⌊2 / (k : ℝ) ^ (-1 / 4 : ℝ) * real.log k⌋₊) at_top at_top,
   { refine tendsto_nat_floor_at_top.comp _,
     rw neg_div,
     refine tendsto.at_top_mul_at_top _ tendsto_log_at_top,
@@ -235,7 +243,7 @@ lemma log_le_log_of_le {x y : ℝ} (hx : 0 < x) (hxy : x ≤ y) :
 (log_le_log hx (hx.trans_le hxy)).2 hxy
 
 lemma log_n_large (c : ℝ) : ∀ᶠ l : ℕ in at_top, ∀ k : ℕ, l ≤ k →
-  c ≤ 1 / 128 * (l : ℝ) ^ (3 / 4 : ℝ) * log k :=
+  c ≤ 1 / 128 * (l : ℝ) ^ (3 / 4 : ℝ) * real.log k :=
 begin
   have t : tendsto (coe : ℕ → ℝ) at_top at_top := tendsto_coe_nat_at_top_at_top,
   have h34 : (0 : ℝ) < 3 / 4, { norm_num },
@@ -678,13 +686,13 @@ begin
   rw [degree_regularisation_applied hi, book_config.degree_regularisation_step_X, mem_filter] at hx,
   rw [degree_steps, mem_filter, mem_range] at hi,
   change (1 - (k : ℝ) ^ (- 1 / 8 : ℝ)) * C.p * C.Y.card ≤ (red_neighbors χ x ∩ C.Y).card,
-  change x ∈ C.X ∧ (C.p - _ * α_function k (C.height k ini.p)) * (C.Y.card : ℝ) ≤
+  change x ∈ C.X ∧ (C.p - _ * α_function k (height k ini.p C.p)) * (C.Y.card : ℝ) ≤
     (red_neighbors χ x ∩ C.Y).card at hx,
   have : 1 / (k : ℝ) < C.p := one_div_k_lt_p_of_lt_final_step hi.1,
   refine hx.2.trans' (mul_le_mul_of_nonneg_right _ (nat.cast_nonneg _)),
   rw [one_sub_mul, sub_le_sub_iff_left],
   cases le_total C.p (q_function k ini.p 0) with h' h',
-  { rw [book_config.height, five_seven_extra, α_one, mul_div_assoc', ←rpow_add' (nat.cast_nonneg _),
+  { rw [five_seven_extra, α_one, mul_div_assoc', ←rpow_add' (nat.cast_nonneg _),
       div_eq_mul_one_div],
     { refine (mul_le_mul_of_nonneg_left this.le (rpow_nonneg_of_nonneg (nat.cast_nonneg _)
         _)).trans_eq _,
